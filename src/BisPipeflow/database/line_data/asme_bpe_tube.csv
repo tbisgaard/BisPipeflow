@@ -1,0 +1,12 @@
+designation,standard,nps_in,dn_mm,od_mm,wall_thickness_mm,schedule
+1/4 in BPE,ASME BPE,1/4,8,6.35,0.89,
+3/8 in BPE,ASME BPE,3/8,10,9.53,0.89,
+1/2 in BPE,ASME BPE,1/2,15,12.70,1.65,
+3/4 in BPE,ASME BPE,3/4,20,19.05,1.65,
+1 in BPE,ASME BPE,1,25,25.40,1.65,
+1.5 in BPE,ASME BPE,1.5,40,38.10,1.65,
+2 in BPE,ASME BPE,2,50,50.80,1.65,
+2.5 in BPE,ASME BPE,2.5,65,63.50,1.65,
+3 in BPE,ASME BPE,3,80,76.20,1.65,
+4 in BPE,ASME BPE,4,100,101.60,2.11,
+6 in BPE,ASME BPE,6,150,152.40,2.77,

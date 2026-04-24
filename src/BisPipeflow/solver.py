@@ -28,7 +28,7 @@ def compute_residuals(units):
         R.extend(u.residuals())
     return R
 
-def solve(flowsheet, max_iter=500, tol=1e-6, alpha=0.2):
+def solve(flowsheet, max_iter=10000, atol=1e-6, alpha=0.2):
 
     for it in range(max_iter):
 
@@ -43,9 +43,10 @@ def solve(flowsheet, max_iter=500, tol=1e-6, alpha=0.2):
             max_res = max(max_res, res_unit)
             # for s in u.streams:
             #     print(f'Stream {s.name}: p={s.pressure/101325}, T={s.temperature}, Q={s.flowrate}')
-
-        if max_res < tol:
+            # print(max_res)
+        if max_res < atol:
             print(f"Converged in {it} iterations")
             return
 
-    raise RuntimeError("Did not converge")
+    #raise RuntimeError("Did not converge")
+    print("Did not converge")

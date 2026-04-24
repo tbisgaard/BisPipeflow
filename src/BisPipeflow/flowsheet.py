@@ -1,10 +1,10 @@
 """
 Flowsheet contains the the overall system
 """
-import numpy as np
 from BisPipeflow import fluid_flow
 from BisPipeflow import components
-
+from BisPipeflow import solver
+from BisPipeflow import global_parameters
 
 
 class Flowsheet:
@@ -15,12 +15,27 @@ class Flowsheet:
         self.id_tag = name
         self.components: list["components.Component"] = []
         self.streams: list["fluid_flow.Stream"] = []
+        self.media = None
 
     def add_unit(self, component: "components.Component"):
         self.components.append(component)
     
     def add_stream(self, stream: "fluid_flow.Stream"):
+        # If media is specified in flowsheet, propagate to streams
+        if self.media is None:
+            print('WARNING No media is defined.')
+        else:
+            stream.mixture = self.media
         self.streams.append(stream)
+    
+    def set_media(self, media: "fluid_flow.Mixture"):
+        if self.media is not None:
+            print('Media has been overwritten.')
+        self.media = media
+
+        # Automatically propagate media to streams
+        for stream in self.streams:
+            stream.mixture = media
     
     @property
     def degrees_of_freedom(self):
@@ -30,11 +45,97 @@ class Flowsheet:
         for unit in self.components:
             dof -= unit.num_equations
         return dof
-    # def propagate_mixtures(self, flowsheet, streams_from_sources):
-    #     for stream in streams_from_sources:
-    #         dfs = []
-    #         #dfs(stream)
 
+    def _propagate_known_values(self):
+        """
+        Propagate know values to all streams in flowsheet.
+        """
+        changed = False
+
+        attrs = ["pressure", "flowrate", "temperature"]
+        known_values = {}
+
+        for attr in attrs:
+            for unit in self.components:
+                value = getattr(unit, attr, None)
+
+                if value is not None:  # and value != 0
+                    known_values[attr] = value
+                    break
+
+        for stream in self.streams:
+            for attr, value in known_values.items():
+                current = getattr(stream, attr, None)
+
+                if current is None:  # or current == 0
+                    setattr(stream, attr, value)
+                    changed = True
+
+        return changed
+    
+    def _enforce_directional_pressure(self, delta_p=1e5):
+        """
+        Enforce pressure diffence for predefined flow directions
+        delta_p = default pressure drop (Pa)
+        """
+        changed = False
+
+        for unit in self.components:
+
+            if not getattr(unit, "is_directional", False):
+                continue
+
+            if getattr(unit, "is_pump", False):
+                continue
+
+            unit_pressure = getattr(unit, "pressure", None)
+
+            if unit_pressure is None or unit_pressure == 0:
+                continue
+
+            if hasattr(unit, "inlet_streams"):
+                for stream in unit.inlet_streams:
+                    upstream = getattr(stream, "source", None)
+
+                    if upstream is None:
+                        continue
+
+                    required_pressure = unit_pressure + delta_p
+                    current_pressure = getattr(upstream, "pressure", 0)
+
+                    if current_pressure < required_pressure:
+                        upstream.pressure = required_pressure
+                        changed = True
+
+        return changed
+    
+    def set_initial_state_all(self, pressure=None, temperature=None, flowrate=None):
+        for stream in self.streams:
+            if pressure is not None:
+                stream.pressure = pressure
+            else:
+                stream.pressure = global_parameters.SCALING_PRESSURE * 2
+            if temperature is not None:
+                stream.temperature = temperature
+            else:
+                stream.temperature = global_parameters.SCALING_TEMPERATURE * 2
+            if flowrate is not None:
+                stream.flowrate = flowrate
+            else:
+                stream.flowrate = global_parameters.SCALING_FLOWRATE * 2
+
+    def initialise(self, changed=True):
+        changed = True
+
+        while changed:
+            changed = False
+
+            changed |= self._propagate_known_values()
+            changed |= self._enforce_directional_pressure()
+
+
+    def solve(self):
+        solver.solve(self)
 
 
 
@@ -122,7 +223,7 @@ class Flowsheet:
 
 
 # # def insert_pipe(stream, diameter, length):
-# #     pipe = PipeSegment("auto_pipe", diameter, length)
+# #     pipe = LineSegment("auto_pipe", diameter, length)
 
 # #     u1, u2 = stream.connected_units
 
